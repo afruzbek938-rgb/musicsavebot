@@ -7,12 +7,11 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from aiogram.filters import Command
 import yt_dlp
 
-TOKEN = "8936913831:AAHlOjfRzV4gyA6Goki50D_NLN3OIlC8FbQY"
+TOKEN = "8936913831:AAHlOjfRzV4gyA6Goki50D_NLN3OIlC8FbQ"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 LANG_FILE = "user_langs.json"
 
-# Fayl nomidagi xavfli belgilarni tozalash
 def clean_filename(filename):
     return re.sub(r'[\\/*?:"<>|]', "", filename)
 
@@ -32,27 +31,26 @@ def get_lang_kb():
 
 @dp.message(Command("start"))
 async def start(message: Message):
-    await message.answer("Tilni tanlang / Выберите язык / Select language:", reply_markup=get_lang_kb())
+    # Ism bilan salomlashish
+    name = message.from_user.first_name
+    await message.answer(f"Salom, {name}! 🎧\nTilni tanlang / Выберите язык / Select language:", reply_markup=get_lang_kb())
 
 @dp.callback_query(F.data.startswith("lang_"))
 async def set_lang(callback: CallbackQuery):
     lang = callback.data.split("_")[1]
     user_langs[str(callback.from_user.id)] = lang
     with open(LANG_FILE, "w") as f: json.dump(user_langs, f)
-    await callback.message.edit_text({"uz": "Til tanlandi!", "ru": "Язык выбран!", "en": "Language selected!"}[lang])
+    await callback.message.edit_text({"uz": "Til tanlandi! Qo'shiq nomini yuboring.", "ru": "Язык выбран! Отправьте название песни.", "en": "Language selected! Send song name."}[lang])
 
 @dp.message(F.text)
 async def handle_music(message: Message):
     lang = user_langs.get(str(message.from_user.id), "en")
     wait = await message.answer("⏳ ...")
     
-    # Faylni vaqtinchalik nom bilan saqlash (xatolik bo'lmasligi uchun)
-    out_tmpl = "downloads/temp_audio.%(ext)s"
-    
     ydl_opts = {
         "format": "bestaudio/best",
         "default_search": "ytsearch1:",
-        "outtmpl": out_tmpl,
+        "outtmpl": "downloads/temp.%(ext)s",
         "quiet": True
     }
     
@@ -61,10 +59,11 @@ async def handle_music(message: Message):
             info = ydl.extract_info(message.text, download=True)
             entry = info["entries"][0]
             real_title = clean_filename(entry['title'])
-            
-            # Faylni haqiqiy nomi bilan qayta nomlash
             file_path = f"downloads/{real_title}.mp3"
-            os.rename("downloads/temp_audio.webm", file_path) # Webm/mp3 formatiga qarab to'g'irlanadi
+            
+            # Fayl kengaytmasini to'g'irlash
+            ext = entry.get('ext', 'mp3')
+            os.rename(f"downloads/temp.{ext}", file_path)
             
             await message.answer_audio(
                 audio=FSInputFile(file_path), 
@@ -72,11 +71,12 @@ async def handle_music(message: Message):
             )
             os.remove(file_path)
     except Exception as e:
-        await message.answer(f"❌ Xatolik: {e}")
+        await message.answer(f"❌ Xatolik yuz berdi. Iltimos, boshqa nom bilan urinib ko'ring.")
     await wait.delete()
 
 async def main():
     if not os.path.exists('downloads'): os.makedirs('downloads')
+    print("Bot polling boshlandi...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
