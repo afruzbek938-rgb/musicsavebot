@@ -7,13 +7,11 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from aiogram.filters import Command
 import yt_dlp
 
-# Botingiz tokeni
 TOKEN = "8936913831:AAHlOjfRzV4gyA6Goki50D_NLN3OIlC8FbQ"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 LANG_FILE = "user_langs.json"
 
-# Fayl nomidagi xavfli belgilarni tozalash (xato chiqmasligi uchun)
 def clean_filename(filename):
     return re.sub(r'[\\/*?:"<>|]', "", filename)
 
@@ -33,7 +31,6 @@ def get_lang_kb():
 
 @dp.message(Command("start"))
 async def start(message: Message):
-    # Ism bilan salomlashish
     name = message.from_user.first_name
     await message.answer(f"Salom, {name}! 🎧\nTilni tanlang / Выберите язык / Select language:", reply_markup=get_lang_kb())
 
@@ -42,40 +39,40 @@ async def set_lang(callback: CallbackQuery):
     lang = callback.data.split("_")[1]
     user_langs[str(callback.from_user.id)] = lang
     with open(LANG_FILE, "w") as f: json.dump(user_langs, f)
-    await callback.message.edit_text({"uz": "Til tanlandi! Qo'shiq nomini yuboring.", "ru": "Язык выбран! Отправьте название песни.", "en": "Language selected! Send song name."}[lang])
+    await callback.message.edit_text({"uz": "Til tanlandi! Qo'shiq nomini yozing.", "ru": "Язык выбран! Введите название песни.", "en": "Language selected! Send song name."}[lang])
 
 @dp.message(F.text)
 async def handle_music(message: Message):
     lang = user_langs.get(str(message.from_user.id), "en")
     wait = await message.answer("⏳ Qidirilmoqda...")
     
-    # Qidiruv parametrlarini aniqroq qilamiz
     ydl_opts = {
         "format": "bestaudio/best",
         "default_search": "ytsearch1:", 
         "outtmpl": "downloads/temp.%(ext)s",
-        "quiet": True
+        "quiet": True,
+        "nocheckcertificate": True
     }
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # Qidiruv so'roviga "audio" qo'shildi
-            info = ydl.extract_info(f"ytsearch1:{message.text} audio", download=True)
+            info = ydl.extract_info(f"ytsearch1:{message.text} official audio", download=True)
             entry = info["entries"][0]
             real_title = clean_filename(entry['title'])
-            
-            # Faylni haqiqiy nomi bilan qayta nomlash
             file_path = f"downloads/{real_title}.mp3"
-            os.rename("downloads/temp.webm", file_path) # Webm formatida yuklansa
             
-            # Bot atmetkasi bilan yuborish
+            ext = entry.get('ext', 'mp3')
+            os.rename(f"downloads/temp.{ext}", file_path)
+            
+            # Robot va bot yozuvi olib tashlandi, shunchaki atmetka qoldi
+            caption = f"🎧 {real_title}\n\n━━━━━━━━━━━━\n@Mucis_Saved_bot"
+            
             await message.answer_audio(
                 audio=FSInputFile(file_path), 
-                caption=f"🎼 {real_title}\n\n🤖 @Music_Save_Bot"
+                caption=caption
             )
-            # Faylni o'chirish
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            
+            if os.path.exists(file_path): os.remove(file_path)
     except Exception as e:
         await message.answer({"uz": "❌ Topilmadi!", "ru": "❌ Не найдено!", "en": "❌ Not found!"}[lang])
     
@@ -83,7 +80,6 @@ async def handle_music(message: Message):
 
 async def main():
     if not os.path.exists('downloads'): os.makedirs('downloads')
-    print("Bot polling boshlandi...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
