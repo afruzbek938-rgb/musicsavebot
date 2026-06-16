@@ -1,2 +1,2 @@
-aiogram==3.13.0
-yt-dlp
+aiogram
+yt-dlp>=2024.01.01
