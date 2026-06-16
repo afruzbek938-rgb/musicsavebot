@@ -9,7 +9,7 @@ from aiogram.enums import ParseMode
 from aiogram.types import Message, FSInputFile
 import yt_dlp
 
-# TOKENGNI SHU YERGA YOZ
+# Tokenni to'g'ridan-to'g'ri kodga yozdik
 TOKEN = "8936913831:AAE29TdwOI_aRKdIM2I2Njn71ma3umAWHbY"
 ADMIN_ID = 6949980794 
 USER_NAMES_FILE = "user_names.json"
@@ -31,25 +31,22 @@ def save_user(user_id, name):
     with open(USER_NAMES_FILE, "w") as f:
         json.dump(users, f)
 
-# Reklama yuborish: /reklama matn
 @dp.message(F.text.startswith("/reklama "))
 async def broadcast(message: Message):
     if message.from_user.id != ADMIN_ID: return
     text = message.text.replace("/reklama ", "")
     users = load_users()
-    count = 0
     for user_id in users.keys():
         try:
             await bot.send_message(chat_id=int(user_id), text=text)
-            count += 1
             await asyncio.sleep(0.05)
         except: pass
-    await message.answer(f"✅ Reklama {count} ta foydalanuvchiga yuborildi.")
+    await message.answer("✅ Reklama yuborildi.")
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
     save_user(message.from_user.id, message.from_user.first_name)
-    await message.answer("🎧 Salom! Qidiruv uchun qo'shiq nomini yozing:")
+    await message.answer("🎧 Salom! Qo'shiq nomini yozing:")
 
 @dp.message(F.text)
 async def handle_music(message: Message):
@@ -70,13 +67,10 @@ async def handle_music(message: Message):
             entry = info["entries"][0]
             file_path = f"downloads/{entry['id']}.{entry.get('ext', 'mp3')}"
             
-            # Davomiylikni (duration) sekundda olamiz
-            duration = int(entry.get("duration", 0))
-            
             await message.answer_audio(
                 audio=FSInputFile(file_path),
                 caption=f"🎼 <b>{entry['title']}</b>",
-                duration=duration # Bu qator minutni avtomatik sanaydi
+                duration=int(entry.get("duration", 0))
             )
             if os.path.exists(file_path): os.remove(file_path)
     except:
@@ -85,7 +79,6 @@ async def handle_music(message: Message):
 
 async def main():
     if not os.path.exists('downloads'): os.makedirs('downloads')
-    print("🚀 Bot ishga tushdi...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
