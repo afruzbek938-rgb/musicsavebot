@@ -7,11 +7,13 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 from aiogram.filters import Command
 import yt_dlp
 
+# Botingiz tokeni
 TOKEN = "8936913831:AAHlOjfRzV4gyA6Goki50D_NLN3OIlC8FbQ"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 LANG_FILE = "user_langs.json"
 
+# Fayl nomidagi xavfli belgilarni tozalash (xato chiqmasligi uchun)
 def clean_filename(filename):
     return re.sub(r'[\\/*?:"<>|]', "", filename)
 
@@ -45,33 +47,38 @@ async def set_lang(callback: CallbackQuery):
 @dp.message(F.text)
 async def handle_music(message: Message):
     lang = user_langs.get(str(message.from_user.id), "en")
-    wait = await message.answer("⏳ ...")
+    wait = await message.answer("⏳ Qidirilmoqda...")
     
+    # Qidiruv parametrlarini aniqroq qilamiz
     ydl_opts = {
         "format": "bestaudio/best",
-        "default_search": "ytsearch1:",
+        "default_search": "ytsearch1:", 
         "outtmpl": "downloads/temp.%(ext)s",
         "quiet": True
     }
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(message.text, download=True)
+            # Qidiruv so'roviga "audio" qo'shildi
+            info = ydl.extract_info(f"ytsearch1:{message.text} audio", download=True)
             entry = info["entries"][0]
             real_title = clean_filename(entry['title'])
+            
+            # Faylni haqiqiy nomi bilan qayta nomlash
             file_path = f"downloads/{real_title}.mp3"
+            os.rename("downloads/temp.webm", file_path) # Webm formatida yuklansa
             
-            # Fayl kengaytmasini to'g'irlash
-            ext = entry.get('ext', 'mp3')
-            os.rename(f"downloads/temp.{ext}", file_path)
-            
+            # Bot atmetkasi bilan yuborish
             await message.answer_audio(
                 audio=FSInputFile(file_path), 
                 caption=f"🎼 {real_title}\n\n🤖 @Music_Save_Bot"
             )
-            os.remove(file_path)
+            # Faylni o'chirish
+            if os.path.exists(file_path):
+                os.remove(file_path)
     except Exception as e:
-        await message.answer(f"❌ Xatolik yuz berdi. Iltimos, boshqa nom bilan urinib ko'ring.")
+        await message.answer({"uz": "❌ Topilmadi!", "ru": "❌ Не найдено!", "en": "❌ Not found!"}[lang])
+    
     await wait.delete()
 
 async def main():
