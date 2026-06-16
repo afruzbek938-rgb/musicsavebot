@@ -46,17 +46,24 @@ async def handle_music(message: Message):
     lang = user_langs.get(str(message.from_user.id), "en")
     wait = await message.answer("⏳ Qidirilmoqda...")
     
+    # Qidiruv parametrlarini kuchaytiramiz
     ydl_opts = {
         "format": "bestaudio/best",
-        "default_search": "ytsearch1:", 
-        "outtmpl": "downloads/temp.%(ext)s",
+        "default_search": "ytsearch1:",
         "quiet": True,
-        "nocheckcertificate": True
+        "nocheckcertificate": True,
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "outtmpl": "downloads/temp.%(ext)s"
     }
     
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"ytsearch1:{message.text} official audio", download=True)
+            # Qidiruv so'rovi yanada aniqroq qilindi
+            info = ydl.extract_info(f"ytsearch1:{message.text} song", download=True)
+            
+            if 'entries' not in info or not info['entries']:
+                raise Exception("Topilmadi")
+                
             entry = info["entries"][0]
             real_title = clean_filename(entry['title'])
             file_path = f"downloads/{real_title}.mp3"
@@ -64,7 +71,6 @@ async def handle_music(message: Message):
             ext = entry.get('ext', 'mp3')
             os.rename(f"downloads/temp.{ext}", file_path)
             
-            # Robot va bot yozuvi olib tashlandi, shunchaki atmetka qoldi
             caption = f"🎧 {real_title}\n\n━━━━━━━━━━━━\n@Mucis_Saved_bot"
             
             await message.answer_audio(
@@ -74,7 +80,7 @@ async def handle_music(message: Message):
             
             if os.path.exists(file_path): os.remove(file_path)
     except Exception as e:
-        await message.answer({"uz": "❌ Topilmadi!", "ru": "❌ Не найдено!", "en": "❌ Not found!"}[lang])
+        await message.answer({"uz": "❌ Topilmadi, boshqa nom bilan urinib ko'ring!", "ru": "❌ Не найдено, попробуйте другое название!", "en": "❌ Not found, try another name!"}[lang])
     
     await wait.delete()
 
