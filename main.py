@@ -4,40 +4,39 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, FSInputFile
 import yt_dlp
 
+# Tokeningiz
 TOKEN = "8936913831:AAHlOjfRzV4gyA6Goki50D_NLN3OIlC8FbQ"
 dp = Dispatcher()
 
-# Eng muhim sozlama: ffmpeg-siz yuklash (Crashed bo'lmasligi uchun)
-YDL_OPTS = {
-    "format": "bestaudio/best",
-    "outtmpl": "downloads/audio.mp3",
-    "quiet": True,
-    "no_warnings": True,
-    "nocheckcertificate": True
-}
-
-async def download_audio(query):
+# Eng muhim sozlama: qidiruv yo'q, faqat yuklash
+async def download_from_link(url):
+    ydl_opts = {
+        "format": "bestaudio/best",
+        "outtmpl": "downloads/audio.mp3",
+        "quiet": True,
+        "no_warnings": True,
+        "nocheckcertificate": True
+    }
     try:
-        with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
-            # Qidiruvni aniqroq qilish
-            info = ydl.extract_info(f"ytsearch1:{query}", download=True)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
             return True
-    except: 
+    except:
         return False
 
-@dp.message(F.text)
-async def handle_message(msg: Message):
-    wait_msg = await msg.reply("⏳ Qidirilmoqda...")
-    
-    success = await download_audio(msg.text)
-    file_path = "downloads/audio.mp3"
-    
-    if success and os.path.exists(file_path):
-        await msg.reply_audio(audio=FSInputFile(file_path), caption=f"🎧 {msg.text}")
-        await wait_msg.delete()
-        os.remove(file_path)
+@dp.message(F.text.startswith("http"))
+async def handle_link(msg: Message):
+    wait = await msg.reply("⏳ Yuklanmoqda...")
+    if await download_from_link(msg.text):
+        await msg.reply_audio(audio=FSInputFile("downloads/audio.mp3"), caption="@Mucis_Saved_bot")
+        os.remove("downloads/audio.mp3")
+        await wait.delete()
     else:
-        await wait_msg.edit_text("❌ Topilmadi. Iltimos, boshqacharoq yozib ko'ring (masalan: 'Jony Kometa').")
+        await wait.edit_text("❌ Yuklashda xatolik. Linkni tekshiring.")
+
+@dp.message()
+async def echo(msg: Message):
+    await msg.reply("⚠️ **Qidiruv funksiyasi o'chirilgan.**\n\nIltimos, shunchaki YouTube yoki Instagram havolasini (link) yuboring.")
 
 async def main():
     if not os.path.exists('downloads'): os.makedirs('downloads')
