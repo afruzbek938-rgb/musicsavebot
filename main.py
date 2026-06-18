@@ -2,6 +2,7 @@ import asyncio
 import os
 import json
 import logging
+import re
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -15,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
-# Har bir til uchun javoblar
+# Tarjimalar
 LANGS = {
     "uz": {"greet": "Assalomu alaykum, {name}! Til saqlandi, qo'shiq nomini yozing.", "search": "⏳ Qidirilmoqda...", "not_found": "❌ Qo'shiq topilmadi!"},
     "ru": {"greet": "Здравствуйте, {name}! Язык сохранен, введите название песни.", "search": "⏳ Поиск...", "not_found": "❌ Песня не найдена!"},
@@ -37,7 +38,6 @@ def save_user_data(user_id, lang):
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
-    # Foydalanuvchi ismini rangli (bosiladigan) formatda yozish
     name = f'<a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a>'
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz"),
@@ -65,7 +65,6 @@ async def handle_music(message: Message):
 
     wait_msg = await message.answer(LANGS[lang]["search"])
     
-    # Qidiruv sozlamalari (qidiruv so'zini o'zgartirmasdan to'g'ridan-to'g'ri qidiradi)
     ydl_opts = {
         "format": "bestaudio/best",
         "noplaylist": True,
@@ -83,12 +82,12 @@ async def handle_music(message: Message):
         entry = info["entries"][0]
         file_path = f"downloads/{entry['id']}.{entry.get('ext', 'mp3')}"
         
-        # Qo'shiq nomi va @Music_Saved_bot imzosi
-        caption = f"🎼 <b>{entry['title']}</b>\n\n🎧 @Mucis_Saved_bot"
+        # Fayl nomi toza bo'lishi uchun belgilar tozalanadi
+        clean_title = re.sub(r'[\\/*?:"<>|]', "", entry['title'])
         
         await message.answer_audio(
-            audio=FSInputFile(file_path),
-            caption=caption,
+            audio=FSInputFile(file_path, filename=f"{clean_title}.mp3"),
+            caption=f"🎼 <b>{entry['title']}</b>\n\n🎧 @Music_Saved_bot",
             duration=int(entry.get("duration", 0))
         )
         if os.path.exists(file_path): os.remove(file_path)
