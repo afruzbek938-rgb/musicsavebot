@@ -16,11 +16,11 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
-# Tarjimalar
+# Tarjimalar lug'ati
 LANGS = {
-    "uz": {"greet": "Assalomu alaykum, {name}! Til saqlandi, qo'shiq nomini yozing.", "search": "⏳ Qidirilmoqda...", "not_found": "❌ Qo'shiq topilmadi!"},
-    "ru": {"greet": "Здравствуйте, {name}! Язык сохранен, введите название песни.", "search": "⏳ Поиск...", "not_found": "❌ Песня не найдена!"},
-    "en": {"greet": "Hello, {name}! Language saved, enter the song name.", "search": "⏳ Searching...", "not_found": "❌ Song not found!"}
+    "uz": {"greet": "Til saqlandi! Qo'shiq nomini yozing.", "search": "⏳ Qidirilmoqda...", "not_found": "❌ Topilmadi!"},
+    "ru": {"greet": "Язык сохранен! Введите название.", "search": "⏳ Поиск...", "not_found": "❌ Не найдено!"},
+    "en": {"greet": "Language saved! Send song name.", "search": "⏳ Searching...", "not_found": "❌ Not found!"}
 }
 
 def load_data():
@@ -40,29 +40,23 @@ def save_user_data(user_id, lang):
 async def cmd_start(message: Message):
     name = f'<a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a>'
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz"),
-         InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru"),
-         InlineKeyboardButton(text="🇬🇧 English", callback_data="lang_en")]
+        [InlineKeyboardButton(text="🇺🇿 O'z", callback_data="lang_uz"),
+         InlineKeyboardButton(text="🇷🇺 Ru", callback_data="lang_ru"),
+         InlineKeyboardButton(text="🇬🇧 En", callback_data="lang_en")]
     ])
-    await message.answer(f"Salom {name}! Tilni tanlang / Выберите язык / Select language:", reply_markup=keyboard)
+    await message.answer(f"Assalomu alaykum {name}! Tilni tanlang:", reply_markup=keyboard)
 
 @dp.callback_query(F.data.startswith("lang_"))
 async def set_lang(call: CallbackQuery):
     lang = call.data.split("_")[1]
     save_user_data(call.from_user.id, lang)
-    name = f'<a href="tg://user?id={call.from_user.id}">{call.from_user.first_name}</a>'
-    await call.message.edit_text(LANGS[lang]["greet"].format(name=name))
+    await call.message.edit_text(LANGS[lang]["greet"])
 
 @dp.message(F.text)
 async def handle_music(message: Message):
     users = load_data()
-    user_id_str = str(message.from_user.id)
-    lang = users.get(user_id_str, "uz")
+    lang = users.get(str(message.from_user.id), "uz") # Default til O'zbekcha
     
-    if user_id_str not in users:
-        await message.answer("Iltimos, avval /start buyrug'ini bosing.")
-        return
-
     wait_msg = await message.answer(LANGS[lang]["search"])
     
     ydl_opts = {
@@ -81,8 +75,6 @@ async def handle_music(message: Message):
         info = await asyncio.to_thread(download)
         entry = info["entries"][0]
         file_path = f"downloads/{entry['id']}.{entry.get('ext', 'mp3')}"
-        
-        # Fayl nomi toza bo'lishi uchun belgilar tozalanadi
         clean_title = re.sub(r'[\\/*?:"<>|]', "", entry['title'])
         
         await message.answer_audio(
@@ -91,8 +83,7 @@ async def handle_music(message: Message):
             duration=int(entry.get("duration", 0))
         )
         if os.path.exists(file_path): os.remove(file_path)
-    except Exception as e:
-        logging.error(f"Xato: {e}")
+    except:
         await message.answer(LANGS[lang]["not_found"])
     
     await wait_msg.delete()
