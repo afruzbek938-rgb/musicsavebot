@@ -16,8 +16,9 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
+# Tarjimalar lug'ati
 LANGS = {
-    "uz": {"greet": "Til saqlandi! Qo'shiq nomini yozing.", "search": "⏳ Qidirilmoqda...", "not_found": "❌ Qo'shiq topilmadi!"},
+    "uz": {"greet": "Til saqlandi! Qo'shiq nomini yozing.", "search": "⏳ Qidirilmoqda...", "not_found": "❌ Topilmadi!"},
     "ru": {"greet": "Язык сохранен! Введите название.", "search": "⏳ Поиск...", "not_found": "❌ Не найдено!"},
     "en": {"greet": "Language saved! Send song name.", "search": "⏳ Searching...", "not_found": "❌ Not found!"}
 }
@@ -54,19 +55,16 @@ async def set_lang(call: CallbackQuery):
 @dp.message(F.text)
 async def handle_music(message: Message):
     users = load_data()
-    lang = users.get(str(message.from_user.id), "uz")
+    lang = users.get(str(message.from_user.id), "uz") # Default til O'zbekcha
     
     wait_msg = await message.answer(LANGS[lang]["search"])
     
-    # Qidiruv sozlamalarini yangiladik (yt-dlp uchun optimal)
     ydl_opts = {
         "format": "bestaudio/best",
         "noplaylist": True,
         "outtmpl": "downloads/%(id)s.%(ext)s",
         "quiet": True,
-        "default_search": "ytsearch1",
-        "nocheckcertificate": True, # SSL xatoliklarini oldini oladi
-        "user_agent": "Mozilla/5.0"
+        "default_search": "ytsearch1"
     }
     
     try:
@@ -75,31 +73,24 @@ async def handle_music(message: Message):
                 return ydl.extract_info(message.text, download=True)
         
         info = await asyncio.to_thread(download)
+        entry = info["entries"][0]
+        file_path = f"downloads/{entry['id']}.{entry.get('ext', 'mp3')}"
+        clean_title = re.sub(r'[\\/*?:"<>|]', "", entry['title'])
         
-        # 'entries' mavjudligini tekshiramiz
-        if "entries" in info and info["entries"]:
-            entry = info["entries"][0]
-            file_path = f"downloads/{entry['id']}.{entry.get('ext', 'mp3')}"
-            clean_title = re.sub(r'[\\/*?:"<>|]', "", entry['title'])
-            
-            await message.answer_audio(
-                audio=FSInputFile(file_path, filename=f"{clean_title}.mp3"),
-                caption=f"🎼 <b>{entry['title']}</b>", # Bot nomi olib tashlandi
-                duration=int(entry.get("duration", 0))
-            )
-            if os.path.exists(file_path): os.remove(file_path)
-        else:
-            await message.answer(LANGS[lang]["not_found"])
-            
-    except Exception as e:
-        logging.error(f"Xatolik: {e}")
+        await message.answer_audio(
+            audio=FSInputFile(file_path, filename=f"{clean_title}.mp3"),
+            caption=f"🎼 <b>{entry['title']}</b>\n\,
+            duration=int(entry.get("duration", 0))
+        )
+        if os.path.exists(file_path): os.remove(file_path)
+    except:
         await message.answer(LANGS[lang]["not_found"])
     
     await wait_msg.delete()
 
 async def main():
     if not os.path.exists('downloads'): os.makedirs('downloads')
-    print("🚀 Bot ishga tushdi...")
+    print("🚀 Bot @Music_Saved_bot ishga tushdi...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
