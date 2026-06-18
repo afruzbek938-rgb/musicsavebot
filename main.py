@@ -9,18 +9,19 @@ from aiogram.enums import ParseMode
 from aiogram.types import Message, FSInputFile, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 import yt_dlp
 
-TOKEN = "8936913831:AAHlOjfRzV4gyA6Goki50D_NLN3OIlC8FbQG"
+# O'zgartirish kerak: TOKEN ni BotFather dan yangilang!
+TOKEN = "8936913831:AAHlOjfRzV4gyA6Goki50D_NLN3OIlC8FbQ"
 USER_DATA_FILE = "users.json"
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
-# Tarjimalar lug'ati
+# Tarjimalar
 LANGS = {
-    "uz": {"greet": "Til saqlandi!✅ Endi qo'shiq yoki video nomini yozing.", "search": "⏳ Qidirilmoqda...", "not_found": "❌ Topilmadi!"},
-    "ru": {"greet": "Язык сохранен!✅ Введите название.", "search": "⏳ Поиск...", "not_found": "❌ Не найдено!"},
-    "en": {"greet": "Language saved!✅ Send song name.", "search": "⏳ Searching...", "not_found": "❌ Not found!"}
+    "uz": {"greet": "✅ Til saqlandi! Qo'shiq yoki video nomini yozing.", "search": "⏳ Qidirilmoqda...", "not_found": "❌ Topilmadi! Boshqa nom bilan urinib ko'ring."},
+    "ru": {"greet": "✅ Язык сохранен! Введите название.", "search": "⏳ Поиск...", "not_found": "❌ Не найдено! Попробуйте еще раз."},
+    "en": {"greet": "✅ Language saved! Send song name.", "search": "⏳ Searching...", "not_found": "❌ Not found! Try another name."}
 }
 
 def load_data():
@@ -36,25 +37,20 @@ def save_user_data(user_id, lang):
     with open(USER_DATA_FILE, "w") as f:
         json.dump(users, f)
 
-# Ismni chiroyli formatlash funksiyasi
-def get_user_link(message: Message):
-    return f'<a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a>'
-
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
-    name = get_user_link(message)
     users = load_data()
+    name = f'<a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a>'
     
-    # Agar til allaqachon tanlangan bo'lsa
     if str(message.from_user.id) in users:
-        await message.answer(f"Salom {name}! Xush kelibsiz. Musiqa nomini yozing.")
+        await message.answer(f"Salom {name}! Yana musiqa yuklashni istaysizmi? Shunchaki nomini yozing.")
     else:
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz")],
             [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")],
             [InlineKeyboardButton(text="🇬🇧 English", callback_data="lang_en")]
         ])
-        await message.answer(f"Assalomu alaykum, {name}!\nTilni tanlang:", reply_markup=keyboard)
+        await message.answer(f"Assalomu alaykum, {name}!\n\nTilni tanlang:", reply_markup=keyboard)
 
 @dp.callback_query(F.data.startswith("lang_"))
 async def set_lang(call: CallbackQuery):
@@ -67,7 +63,6 @@ async def handle_music(message: Message):
     users = load_data()
     lang = users.get(str(message.from_user.id), "uz")
     
-    # Foydalanuvchi hali til tanlamagan bo'lsa, avval /start qilsin
     if str(message.from_user.id) not in users:
         await message.answer("Iltimos, avval /start buyrug'ini bosing.")
         return
@@ -100,14 +95,14 @@ async def handle_music(message: Message):
         )
         if os.path.exists(file_path): os.remove(file_path)
     except Exception as e:
-        logging.error(f"Xatolik: {e}")
+        logging.error(f"Xatolik yuz berdi: {e}")
         await message.answer(LANGS[lang]["not_found"])
     
     await wait_msg.delete()
 
 async def main():
     if not os.path.exists('downloads'): os.makedirs('downloads')
-    print("🚀 Music Saved bot ishga tushdi...")
+    print("🚀 Bot ishga tushdi! @Music_Saved_bot")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
