@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
-# Tarjimalar va xabarlar
+# Har bir til uchun javoblar
 LANGS = {
     "uz": {"greet": "Assalomu alaykum, {name}! Til saqlandi, qo'shiq nomini yozing.", "search": "⏳ Qidirilmoqda...", "not_found": "❌ Qo'shiq topilmadi!"},
     "ru": {"greet": "Здравствуйте, {name}! Язык сохранен, введите название песни.", "search": "⏳ Поиск...", "not_found": "❌ Песня не найдена!"},
@@ -37,7 +37,7 @@ def save_user_data(user_id, lang):
 
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
-    # Rangli ism (HTML formatda)
+    # Foydalanuvchi ismini rangli (bosiladigan) formatda yozish
     name = f'<a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a>'
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz"),
@@ -56,10 +56,16 @@ async def set_lang(call: CallbackQuery):
 @dp.message(F.text)
 async def handle_music(message: Message):
     users = load_data()
-    lang = users.get(str(message.from_user.id), "uz")
+    user_id_str = str(message.from_user.id)
+    lang = users.get(user_id_str, "uz")
     
+    if user_id_str not in users:
+        await message.answer("Iltimos, avval /start buyrug'ini bosing.")
+        return
+
     wait_msg = await message.answer(LANGS[lang]["search"])
     
+    # Qidiruv sozlamalari (qidiruv so'zini o'zgartirmasdan to'g'ridan-to'g'ri qidiradi)
     ydl_opts = {
         "format": "bestaudio/best",
         "noplaylist": True,
@@ -77,7 +83,7 @@ async def handle_music(message: Message):
         entry = info["entries"][0]
         file_path = f"downloads/{entry['id']}.{entry.get('ext', 'mp3')}"
         
-        # Rasmda ko'rsatilgan uslubda caption
+        # Qo'shiq nomi va @Music_Saved_bot imzosi
         caption = f"🎼 <b>{entry['title']}</b>\n\n🎧 @Music_Saved_bot"
         
         await message.answer_audio(
@@ -86,13 +92,15 @@ async def handle_music(message: Message):
             duration=int(entry.get("duration", 0))
         )
         if os.path.exists(file_path): os.remove(file_path)
-    except:
+    except Exception as e:
+        logging.error(f"Xato: {e}")
         await message.answer(LANGS[lang]["not_found"])
     
     await wait_msg.delete()
 
 async def main():
     if not os.path.exists('downloads'): os.makedirs('downloads')
+    print("🚀 Bot @Music_Saved_bot ishga tushdi...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
