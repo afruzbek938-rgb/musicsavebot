@@ -16,11 +16,11 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
-# Tarjimalar lug'ati
+# Til sozlamalari
 LANGS = {
-    "uz": {"greet": "Til saqlandi! Qo'shiq nomini yozing.", "search": "⏳ Qidirilmoqda...", "not_found": "❌ Topilmadi!"},
-    "ru": {"greet": "Язык сохранен! Введите название.", "search": "⏳ Поиск...", "not_found": "❌ Не найдено!"},
-    "en": {"greet": "Language saved! Send song name.", "search": "⏳ Searching...", "not_found": "❌ Not found!"}
+    "uz": {"greet": "Til saqlandi! Qo'shiq nomini yozing.", "search": "⏳ Qidirilmoqda...", "not_found": "❌ Qo'shiq topilmadi!"},
+    "ru": {"greet": "Язык сохранен! Введите название песни.", "search": "⏳ Поиск...", "not_found": "❌ Песня не найдена!"},
+    "en": {"greet": "Language saved! Send song name.", "search": "⏳ Searching...", "not_found": "❌ Song not found!"}
 }
 
 def load_data():
@@ -40,9 +40,9 @@ def save_user_data(user_id, lang):
 async def cmd_start(message: Message):
     name = f'<a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a>'
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🇺🇿 O'z", callback_data="lang_uz"),
-         InlineKeyboardButton(text="🇷🇺 Ru", callback_data="lang_ru"),
-         InlineKeyboardButton(text="🇬🇧 En", callback_data="lang_en")]
+        [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz"),
+         InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru"),
+         InlineKeyboardButton(text="🇬🇧 English", callback_data="lang_en")]
     ])
     await message.answer(f"Assalomu alaykum {name}! Tilni tanlang:", reply_markup=keyboard)
 
@@ -55,7 +55,7 @@ async def set_lang(call: CallbackQuery):
 @dp.message(F.text)
 async def handle_music(message: Message):
     users = load_data()
-    lang = users.get(str(message.from_user.id), "uz") # Default til O'zbekcha
+    lang = users.get(str(message.from_user.id), "uz")
     
     wait_msg = await message.answer(LANGS[lang]["search"])
     
@@ -77,6 +77,7 @@ async def handle_music(message: Message):
         file_path = f"downloads/{entry['id']}.{entry.get('ext', 'mp3')}"
         clean_title = re.sub(r'[\\/*?:"<>|]', "", entry['title'])
         
+        # Sizning botingiz imzosi
         await message.answer_audio(
             audio=FSInputFile(file_path, filename=f"{clean_title}.mp3"),
             caption=f"🎼 <b>{entry['title']}</b>\n\n🎧 @Mucis_Saved_bot",
@@ -90,7 +91,7 @@ async def handle_music(message: Message):
 
 async def main():
     if not os.path.exists('downloads'): os.makedirs('downloads')
-    print("🚀 Bot @Music_Saved_bot ishga tushdi...")
+    print("🚀 Bot @Mucis_Saved_bot ishga tushdi...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
