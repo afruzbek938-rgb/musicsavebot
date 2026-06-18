@@ -79,7 +79,7 @@ async def handle_music(message: Message):
         
         await message.answer_audio(
             audio=FSInputFile(file_path, filename=f"{clean_title}.mp3"),
-            caption=f"🎼 <b>{entry['title']}</b>\n\n🎧 @Music_Saved_bot",
+            caption=f"🎼 <b>{entry['title']}</b>\n\n🎧 @Mucis_Saved_bot",
             duration=int(entry.get("duration", 0))
         )
         if os.path.exists(file_path): os.remove(file_path)
