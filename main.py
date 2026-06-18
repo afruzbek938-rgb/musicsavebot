@@ -9,7 +9,7 @@ from aiogram.enums import ParseMode
 from aiogram.types import Message, FSInputFile, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 import yt_dlp
 
-TOKEN = "YANGI_TOKENINGIZNI_SHU_YERGA_YOZING"
+TOKEN = "8936913831:AAHlOjfRzV4gyA6Goki50D_NLN3OIlC8FbQG"
 USER_DATA_FILE = "users.json"
 
 logging.basicConfig(level=logging.INFO)
@@ -18,9 +18,9 @@ dp = Dispatcher()
 
 # Tarjimalar lug'ati
 LANGS = {
-    "uz": {"greet": "Til saqlandi! Qo'shiq nomini yozing.", "search": "⏳ Qidirilmoqda...", "not_found": "❌ Topilmadi!"},
-    "ru": {"greet": "Язык сохранен! Введите название.", "search": "⏳ Поиск...", "not_found": "❌ Не найдено!"},
-    "en": {"greet": "Language saved! Send song name.", "search": "⏳ Searching...", "not_found": "❌ Not found!"}
+    "uz": {"greet": "Til saqlandi!✅ Endi qo'shiq yoki video nomini yozing.", "search": "⏳ Qidirilmoqda...", "not_found": "❌ Topilmadi!"},
+    "ru": {"greet": "Язык сохранен!✅ Введите название.", "search": "⏳ Поиск...", "not_found": "❌ Не найдено!"},
+    "en": {"greet": "Language saved!✅ Send song name.", "search": "⏳ Searching...", "not_found": "❌ Not found!"}
 }
 
 def load_data():
@@ -36,15 +36,25 @@ def save_user_data(user_id, lang):
     with open(USER_DATA_FILE, "w") as f:
         json.dump(users, f)
 
+# Ismni chiroyli formatlash funksiyasi
+def get_user_link(message: Message):
+    return f'<a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a>'
+
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
-    name = f'<a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a>'
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🇺🇿 O'z", callback_data="lang_uz"),
-         InlineKeyboardButton(text="🇷🇺 Ru", callback_data="lang_ru"),
-         InlineKeyboardButton(text="🇬🇧 En", callback_data="lang_en")]
-    ])
-    await message.answer(f"Assalomu alaykum {name}! Tilni tanlang:", reply_markup=keyboard)
+    name = get_user_link(message)
+    users = load_data()
+    
+    # Agar til allaqachon tanlangan bo'lsa
+    if str(message.from_user.id) in users:
+        await message.answer(f"Salom {name}! Xush kelibsiz. Musiqa nomini yozing.")
+    else:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz")],
+            [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")],
+            [InlineKeyboardButton(text="🇬🇧 English", callback_data="lang_en")]
+        ])
+        await message.answer(f"Assalomu alaykum, {name}!\nTilni tanlang:", reply_markup=keyboard)
 
 @dp.callback_query(F.data.startswith("lang_"))
 async def set_lang(call: CallbackQuery):
@@ -57,6 +67,11 @@ async def handle_music(message: Message):
     users = load_data()
     lang = users.get(str(message.from_user.id), "uz")
     
+    # Foydalanuvchi hali til tanlamagan bo'lsa, avval /start qilsin
+    if str(message.from_user.id) not in users:
+        await message.answer("Iltimos, avval /start buyrug'ini bosing.")
+        return
+
     wait_msg = await message.answer(LANGS[lang]["search"])
     
     ydl_opts = {
@@ -74,7 +89,6 @@ async def handle_music(message: Message):
         
         info = await asyncio.to_thread(download)
         entry = info["entries"][0]
-        # Fayl kengaytmasini aniqlash
         ext = entry.get('ext', 'mp3')
         file_path = f"downloads/{entry['id']}.{ext}"
         
@@ -82,8 +96,7 @@ async def handle_music(message: Message):
         
         await message.answer_audio(
             audio=FSInputFile(file_path, filename=f"{clean_title}.{ext}"),
-            caption=f"🎼 <b>{entry['title']}</b>",
-            duration=int(entry.get("duration", 0))
+            caption=f"🎵 <b>{entry['title']}</b>\n\n📥 @Music_Saved_bot orqali yuklandi",
         )
         if os.path.exists(file_path): os.remove(file_path)
     except Exception as e:
@@ -94,7 +107,7 @@ async def handle_music(message: Message):
 
 async def main():
     if not os.path.exists('downloads'): os.makedirs('downloads')
-    print("🚀 Bot ishga tushdi...")
+    print("🚀 Music Saved bot ishga tushdi...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
