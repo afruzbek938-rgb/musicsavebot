@@ -11,7 +11,7 @@ import yt_dlp
 
 # O'zgartirish kerak: TOKEN ni BotFather dan yangilang!
 TOKEN = "8936913831:AAHlOjfRzV4gyA6Goki50D_NLN3OIlC8FbQ"
-USER_DATA_FILE = "users.json"
+USER_DATA_FILE = "6949980794"
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
