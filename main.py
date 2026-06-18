@@ -16,11 +16,10 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
-# Til sozlamalari
 LANGS = {
     "uz": {"greet": "Til saqlandi! Qo'shiq nomini yozing.", "search": "⏳ Qidirilmoqda...", "not_found": "❌ Qo'shiq topilmadi!"},
-    "ru": {"greet": "Язык сохранен! Введите название песни.", "search": "⏳ Поиск...", "not_found": "❌ Песня не найдена!"},
-    "en": {"greet": "Language saved! Send song name.", "search": "⏳ Searching...", "not_found": "❌ Song not found!"}
+    "ru": {"greet": "Язык сохранен! Введите название.", "search": "⏳ Поиск...", "not_found": "❌ Не найдено!"},
+    "en": {"greet": "Language saved! Send song name.", "search": "⏳ Searching...", "not_found": "❌ Not found!"}
 }
 
 def load_data():
@@ -40,9 +39,9 @@ def save_user_data(user_id, lang):
 async def cmd_start(message: Message):
     name = f'<a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a>'
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz"),
-         InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru"),
-         InlineKeyboardButton(text="🇬🇧 English", callback_data="lang_en")]
+        [InlineKeyboardButton(text="🇺🇿 O'z", callback_data="lang_uz"),
+         InlineKeyboardButton(text="🇷🇺 Ru", callback_data="lang_ru"),
+         InlineKeyboardButton(text="🇬🇧 En", callback_data="lang_en")]
     ])
     await message.answer(f"Assalomu alaykum {name}! Tilni tanlang:", reply_markup=keyboard)
 
@@ -59,12 +58,15 @@ async def handle_music(message: Message):
     
     wait_msg = await message.answer(LANGS[lang]["search"])
     
+    # Qidiruv sozlamalarini yangiladik (yt-dlp uchun optimal)
     ydl_opts = {
         "format": "bestaudio/best",
         "noplaylist": True,
         "outtmpl": "downloads/%(id)s.%(ext)s",
         "quiet": True,
-        "default_search": "ytsearch1"
+        "default_search": "ytsearch1",
+        "nocheckcertificate": True, # SSL xatoliklarini oldini oladi
+        "user_agent": "Mozilla/5.0"
     }
     
     try:
@@ -73,25 +75,31 @@ async def handle_music(message: Message):
                 return ydl.extract_info(message.text, download=True)
         
         info = await asyncio.to_thread(download)
-        entry = info["entries"][0]
-        file_path = f"downloads/{entry['id']}.{entry.get('ext', 'mp3')}"
-        clean_title = re.sub(r'[\\/*?:"<>|]', "", entry['title'])
         
-        # Sizning botingiz imzosi
-        await message.answer_audio(
-            audio=FSInputFile(file_path, filename=f"{clean_title}.mp3"),
-            caption=f"🎼 <b>{entry['title']}</b>\n\n🎧 @Mucis_Saved_bot",
-            duration=int(entry.get("duration", 0))
-        )
-        if os.path.exists(file_path): os.remove(file_path)
-    except:
+        # 'entries' mavjudligini tekshiramiz
+        if "entries" in info and info["entries"]:
+            entry = info["entries"][0]
+            file_path = f"downloads/{entry['id']}.{entry.get('ext', 'mp3')}"
+            clean_title = re.sub(r'[\\/*?:"<>|]', "", entry['title'])
+            
+            await message.answer_audio(
+                audio=FSInputFile(file_path, filename=f"{clean_title}.mp3"),
+                caption=f"🎼 <b>{entry['title']}</b>", # Bot nomi olib tashlandi
+                duration=int(entry.get("duration", 0))
+            )
+            if os.path.exists(file_path): os.remove(file_path)
+        else:
+            await message.answer(LANGS[lang]["not_found"])
+            
+    except Exception as e:
+        logging.error(f"Xatolik: {e}")
         await message.answer(LANGS[lang]["not_found"])
     
     await wait_msg.delete()
 
 async def main():
     if not os.path.exists('downloads'): os.makedirs('downloads')
-    print("🚀 Bot @Mucis_Saved_bot ishga tushdi...")
+    print("🚀 Bot ishga tushdi...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
