@@ -84,7 +84,7 @@ async def handle_music(message: Message):
         file_path = f"downloads/{entry['id']}.{entry.get('ext', 'mp3')}"
         
         # Qo'shiq nomi va @Music_Saved_bot imzosi
-        caption = f"🎼 <b>{entry['title']}</b>\n\n🎧 @Music_Saved_bot"
+        caption = f"🎼 <b>{entry['title']}</b>\n\n🎧 @Mucis_Saved_bot"
         
         await message.answer_audio(
             audio=FSInputFile(file_path),
