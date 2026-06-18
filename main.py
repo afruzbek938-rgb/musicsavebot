@@ -9,7 +9,7 @@ from aiogram.enums import ParseMode
 from aiogram.types import Message, FSInputFile, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 import yt_dlp
 
-TOKEN = "8936913831:AAHlOjfRzV4gyA6Goki50D_NLN3OIlC8FbQ"
+TOKEN = "YANGI_TOKENINGIZNI_SHU_YERGA_YOZING"
 USER_DATA_FILE = "users.json"
 
 logging.basicConfig(level=logging.INFO)
@@ -55,7 +55,7 @@ async def set_lang(call: CallbackQuery):
 @dp.message(F.text)
 async def handle_music(message: Message):
     users = load_data()
-    lang = users.get(str(message.from_user.id), "uz") # Default til O'zbekcha
+    lang = users.get(str(message.from_user.id), "uz")
     
     wait_msg = await message.answer(LANGS[lang]["search"])
     
@@ -74,23 +74,27 @@ async def handle_music(message: Message):
         
         info = await asyncio.to_thread(download)
         entry = info["entries"][0]
-        file_path = f"downloads/{entry['id']}.{entry.get('ext', 'mp3')}"
+        # Fayl kengaytmasini aniqlash
+        ext = entry.get('ext', 'mp3')
+        file_path = f"downloads/{entry['id']}.{ext}"
+        
         clean_title = re.sub(r'[\\/*?:"<>|]', "", entry['title'])
         
         await message.answer_audio(
-            audio=FSInputFile(file_path, filename=f"{clean_title}.mp3"),
-            caption=f"🎼 <b>{entry['title']}</b>\n,
+            audio=FSInputFile(file_path, filename=f"{clean_title}.{ext}"),
+            caption=f"🎼 <b>{entry['title']}</b>",
             duration=int(entry.get("duration", 0))
         )
         if os.path.exists(file_path): os.remove(file_path)
-    except:
+    except Exception as e:
+        logging.error(f"Xatolik: {e}")
         await message.answer(LANGS[lang]["not_found"])
     
     await wait_msg.delete()
 
 async def main():
     if not os.path.exists('downloads'): os.makedirs('downloads')
-    print("🚀 Bot @Music_Saved_bot ishga tushdi...")
+    print("🚀 Bot ishga tushdi...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
