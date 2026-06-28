@@ -1,135 +1,89 @@
 import asyncio
 import os
 import re
+import json
+import logging
 from aiogram import Bot, Dispatcher, F
+from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, FSInputFile
+from aiogram.types import Message, FSInputFile, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 import yt_dlp
 
-# =====================================================================
-TOKEN = "8615110980:AAHl1YLkvZ1Z8qUr45uI3dMwx-lR0lKVp1E"
-VERSION = "1.12.2"
-# =====================================================================
+TOKEN = "8936913831:AAE29TdwOI_aRKdIM2I2Njn71ma3umAWHbY"
+USER_DATA_FILE = "users.json"
 
+logging.basicConfig(level=logging.INFO)
+bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
-user_language = {} # Foydalanuvchi tilini saqlash uchun lug'at
 
-TEXTS = {
-    'uz': {
-        'welcome': "👋 Salom, **{name}**! InstaTubeBot-ga xush kelibsiz!",
-        'btn_video_mode': "📥 VIDEO YUKLASH",
-        'btn_lang': "🌐 TILNI O'ZGARTIRISH",
-        'prompt_video': "👇 Iltimos, video havolasini yuboring (Instagram, YouTube, TikTok, Facebook, Likee...):",
-        'error': "⚠️ Xatolik! Havolani tekshiring yoki video yopiq profilda bo'lishi mumkin.",
-        'remind': "💡 Iltimos, menga video havolasini yuboring!"
-    },
-    'ru': {
-        'welcome': "👋 Привет, **{name}**! Добро пожаловать в InstaTubeBot!",
-        'btn_video_mode': "📥 СКАЧАТЬ ВИДЕО",
-        'btn_lang': "🌐 СМЕНИТЬ ЯЗЫК",
-        'prompt_video': "👇 Пожалуйста, отправьте ссылку на видео (Instagram, YouTube, TikTok, Facebook, Likee...):",
-        'error': "⚠️ Ошибка! Проверьте ссылку или настройки приватности.",
-        'remind': "💡 Пожалуйста, отправьте ссылку на видео!"
-    },
-    'en': {
-        'welcome': "👋 Hello, **{name}**! Welcome to InstaTubeBot!",
-        'btn_video_mode': "📥 DOWNLOAD VIDEO",
-        'btn_lang': "🌐 CHANGE LANGUAGE",
-        'prompt_video': "👇 Please send the video link (Instagram, YouTube, TikTok, Facebook, Likee...):",
-        'error': "⚠️ Error! Please check the link or privacy settings.",
-        'remind': "💡 Please send a video link!"
-    }
+# Tarjimalar lug'ati
+LANGS = {
+    "uz": {"greet": "Assalomu alaykum, {name}! Til saqlandi, qo'shiq nomini yozing.", "search": "⏳ Qidirilmoqda..."},
+    "ru": {"greet": "Здравствуйте, {name}! Язык сохранен, введите название песни.", "search": "⏳ Поиск..."},
+    "en": {"greet": "Hello, {name}! Language saved, enter the song name.", "search": "⏳ Searching..."}
 }
 
-# --- YUKLASH FUNKSIYASI ---
-async def download_media(url: str):
-    ydl_opts = {
-        "format": "bestvideo+bestaudio/best",
-        "outtmpl": "downloads/%(id)s.%(ext)s",
-        "quiet": True,
-        "nocheckcertificate": True,
-    }
-    loop = asyncio.get_event_loop()
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = await loop.run_in_executor(None, lambda: ydl.extract_info(url, download=True))
-            return info
-    except Exception as e:
-        print(f"ERROR: {e}")
-        return None
+def load_data():
+    if os.path.exists(USER_DATA_FILE):
+        with open(USER_DATA_FILE, "r") as f:
+            try: return json.load(f)
+            except: return {}
+    return {}
 
-# --- KLAVIATURALAR ---
-def get_main_keyboard(lang: str) -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=TEXTS[lang]['btn_video_mode'])],
-            [KeyboardButton(text=TEXTS[lang]['btn_lang'])]
-        ],
-        resize_keyboard=True
-    )
+def save_user_data(user_id, lang):
+    users = load_data()
+    users[str(user_id)] = lang
+    with open(USER_DATA_FILE, "w") as f:
+        json.dump(users, f)
 
-def get_lang_keyboard() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="🇺🇿 O'zbekcha"), KeyboardButton(text="🇷🇺 Русский"), KeyboardButton(text="🇺🇸 English")]], 
-        resize_keyboard=True
-    )
-
-# --- HANDLERLAR ---
 @dp.message(F.text == "/start")
 async def cmd_start(message: Message):
-    user_name = message.from_user.first_name
-    if message.chat.id in user_language:
-        lang = user_language[message.chat.id]
-        await message.answer(TEXTS[lang]['welcome'].format(name=user_name), 
-                             reply_markup=get_main_keyboard(lang), parse_mode=ParseMode.MARKDOWN)
-    else:
-        await message.answer(f"👋 Salom/Привет/Hello, **{user_name}**!\n🌍 Tilni tanlang:", reply_markup=get_lang_keyboard(), parse_mode=ParseMode.MARKDOWN)
+    # Rangli ism formatlash
+    name = f'<a href="tg://user?id={message.from_user.id}">{message.from_user.first_name}</a>'
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz"),
+         InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru"),
+         InlineKeyboardButton(text="🇬🇧 English", callback_data="lang_en")]
+    ])
+    await message.answer(f"Salom {name}! Tilni tanlang / Выберите язык / Select language:", reply_markup=keyboard)
 
-@dp.message(F.text.in_(["🇺🇿 O'zbekcha", "🇷🇺 Русский", "🇺🇸 English"]))
-async def set_lang(message: Message):
-    lang_map = {"🇺🇿 O'zbekcha": 'uz', "🇷🇺 Русский": 'ru', "🇺🇸 English": 'en'}
-    selected_lang = lang_map[message.text]
-    user_language[message.chat.id] = selected_lang
-    user_name = message.from_user.first_name
-    await message.answer(TEXTS[selected_lang]['welcome'].format(name=user_name), 
-                         reply_markup=get_main_keyboard(selected_lang), parse_mode=ParseMode.MARKDOWN)
+@dp.callback_query(F.data.startswith("lang_"))
+async def set_lang(call: CallbackQuery):
+    lang = call.data.split("_")[1]
+    save_user_data(call.from_user.id, lang)
+    name = f'<a href="tg://user?id={call.from_user.id}">{call.from_user.first_name}</a>'
+    await call.message.edit_text(LANGS[lang]["greet"].format(name=name))
 
 @dp.message(F.text)
-async def handle_message(message: Message):
-    chat_id = message.chat.id
-    lang = user_language.get(chat_id, 'uz')
-    text = message.text
-
-    if text in [TEXTS['uz']['btn_video_mode'], TEXTS['ru']['btn_video_mode'], TEXTS['en']['btn_video_mode']]:
-        await message.answer(TEXTS[lang]['prompt_video'])
-        return
+async def handle_music(message: Message):
+    users = load_data()
+    lang = users.get(str(message.from_user.id), "uz")
     
-    if text in ["🌐 TILNI O'ZGARTIRISH", "🌐 СМЕНИТЬ ЯЗЫК", "🌐 CHANGE LANGUAGE"]:
-        await message.answer("🌍 Tilni tanlang:", reply_markup=get_lang_keyboard())
-        return
-
-    url_match = re.search(r'(https?://[^\s]+)', text)
-    if url_match:
-        url = url_match.group(1)
-        wait_msg = await message.reply("⏳ *Yuklanmoqda...*", parse_mode=ParseMode.MARKDOWN)
+    wait_msg = await message.answer(LANGS[lang]["search"])
+    
+    cleaned_text = re.sub(r'[^\w\s\-]', '', message.text).strip()
+    ydl_opts = {"format": "bestaudio/best", "noplaylist": True, "outtmpl": "downloads/%(id)s.%(ext)s", "quiet": True}
+    
+    try:
+        def download():
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                return ydl.extract_info(f"ytsearch1:{cleaned_text}", download=True)
         
-        info = await download_media(url)
+        info = await asyncio.to_thread(download)
+        entry = info["entries"][0]
+        file_path = f"downloads/{entry['id']}.{entry.get('ext', 'mp3')}"
         
-        if info:
-            file_path = f"downloads/{info['id']}.{info['ext']}"
-            caption = f"📹 *{info.get('title', 'Video')}*\n\n🤖 Bot versiyasi: {VERSION}"
-            
-            await message.reply_video(video=FSInputFile(file_path), caption=caption, parse_mode=ParseMode.MARKDOWN)
-            os.remove(file_path)
-            await wait_msg.delete()
-        else:
-            await wait_msg.edit_text(TEXTS[lang]['error'])
-    else:
-        await message.answer(TEXTS[lang]['remind'])
+        # Rasmda ko'rsatilganidek formatda yuborish (image_9ff8c9.png)
+        caption = f"🎼 <b>{entry['title']}</b>\n\n🎧 @Music_Saved_bot"
+        
+        await message.answer_audio(audio=FSInputFile(file_path), caption=caption, duration=int(entry.get("duration", 0)))
+        if os.path.exists(file_path): os.remove(file_path)
+    except:
+        await message.answer("❌ Xatolik!")
+    await wait_msg.delete()
 
-async def main() -> None:
+async def main():
     if not os.path.exists('downloads'): os.makedirs('downloads')
-    bot = Bot(token=TOKEN)
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
